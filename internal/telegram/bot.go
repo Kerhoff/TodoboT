@@ -131,3 +131,15 @@ func (b *Bot) DeleteMessage(chatID int64, messageID int) error {
 
 	return nil
 }
+
+// RegisterCommand registers a command handler on the router
+func (b *Bot) RegisterCommand(command string, handler CommandHandler) {
+	b.router.RegisterCommand(command, handler)
+}
+
+// SendRaw sends a raw tgbotapi.Chattable message
+func (b *Bot) SendRaw(c tgbotapi.Chattable) {
+	if _, err := b.api.Send(c); err != nil {
+		b.logger.Errorf("Failed to send message: %v", err)
+	}
+}

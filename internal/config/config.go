@@ -7,24 +7,20 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	TelegramToken  string
-	DatabaseURL    string
-	LogLevel       string
-	PrometheusPort string
-	WebhookURL     string
-	Port           string
+	TelegramToken string
+	DatabaseURL   string
+	LogLevel      string
+	Port          string
+	WebhookURL    string
 }
 
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
-		LogLevel:       getEnvOrDefault("LOG_LEVEL", "info"),
-		PrometheusPort: getEnvOrDefault("PROMETHEUS_PORT", "9090"),
-		Port:           getEnvOrDefault("PORT", "8080"),
+		LogLevel: getEnvOrDefault("LOG_LEVEL", "info"),
+		Port:     getEnvOrDefault("PORT", "8080"),
 	}
 
-	// Required environment variables
-	var err error
 	if cfg.TelegramToken = os.Getenv("TELEGRAM_TOKEN"); cfg.TelegramToken == "" {
 		return nil, fmt.Errorf("TELEGRAM_TOKEN environment variable is required")
 	}
@@ -33,10 +29,11 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
 	}
 
-	return cfg, err
+	cfg.WebhookURL = os.Getenv("WEBHOOK_URL")
+
+	return cfg, nil
 }
 
-// getEnvOrDefault returns environment variable value or default if not set
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

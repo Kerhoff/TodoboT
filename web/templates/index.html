@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TodoboT - Family Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</head>
+<body>
+    <main class="container" x-data="app()">
+        <!-- Header -->
+        <header>
+            <hgroup>
+                <h1>TodoboT</h1>
+                <p>Family Dashboard</p>
+            </hgroup>
+            <div class="grid">
+                <label>
+                    Chat ID
+                    <input type="text" x-model="chatId" placeholder="Enter your Telegram chat ID"
+                           @keydown.enter="loadAll()">
+                </label>
+                <label>
+                    &nbsp;
+                    <button @click="loadAll()" :disabled="!chatId">
+                        Load Data
+                    </button>
+                </label>
+            </div>
+            <p x-show="!chatId" role="alert" class="pico-color-yellow-500">
+                Enter your Telegram chat ID to get started.
+            </p>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav>
+            <ul>
+                <li>
+                    <a href="#" @click.prevent="tab='todos'"
+                       :class="tab === 'todos' && 'tab-active'"
+                       role="button" :class="tab === 'todos' ? 'primary' : 'secondary outline'">
+                        Todos
+                    </a>
+                </li>
+                <li>
+                    <a href="#" @click.prevent="tab='calendar'"
+                       role="button" :class="tab === 'calendar' ? 'primary' : 'secondary outline'">
+                        Calendar
+                    </a>
+                </li>
+                <li>
+                    <a href="#" @click.prevent="tab='shopping'"
+                       role="button" :class="tab === 'shopping' ? 'primary' : 'secondary outline'">
+                        Shopping
+                    </a>
+                </li>
+                <li>
+                    <a href="#" @click.prevent="tab='wishes'"
+                       role="button" :class="tab === 'wishes' ? 'primary' : 'secondary outline'">
+                        Wishes
+                    </a>
+                </li>
+                <li>
+                    <a href="#" @click.prevent="tab='reminders'"
+                       role="button" :class="tab === 'reminders' ? 'primary' : 'secondary outline'">
+                        Reminders
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Loading indicator -->
+        <p x-show="loading" aria-busy="true">Loading data...</p>
+
+        <!-- ==================== TODOS TAB ==================== -->
+        <section x-show="tab === 'todos'">
+            <h2>Todos</h2>
+
+            <!-- Add Todo Form -->
+            <form @submit.prevent="addTodo()" class="grid">
+                <input type="text" x-model="newTodo.title" placeholder="What needs to be done?" required>
+                <select x-model="newTodo.priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <input type="date" x-model="newTodo.deadline" placeholder="Deadline (optional)">
+                <button type="submit" :disabled="!newTodo.title || !chatId">Add</button>
+            </form>
+
+            <!-- Filter Controls -->
+            <fieldset role="group">
+                <button :class="todoFilter === 'all' ? '' : 'outline'"
+                        @click="todoFilter='all'; loadTodos()">All</button>
+                <button :class="todoFilter === 'pending' ? '' : 'outline'"
+                        @click="todoFilter='pending'; loadTodos()">Pending</button>
+                <button :class="todoFilter === 'completed' ? '' : 'outline'"
+                        @click="todoFilter='completed'; loadTodos()">Completed</button>
+            </fieldset>
+
+            <!-- Todo List -->
+            <template x-if="todos.length === 0 && !loading">
+                <p><em>No todos found. Add one above.</em></p>
+            </template>
+
+            <table x-show="todos.length > 0" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Status</th>
+                        <th scope="col">Title</th>
+                        <th scope="col">Priority</th>
+                        <th scope="col">Deadline</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="todo in todos" :key="todo.id">
+                        <tr :class="{
+                            'priority-high': todo.priority === 'high',
+                            'priority-medium': todo.priority === 'medium',
+                            'priority-low': todo.priority === 'low'
+                        }">
+                            <td>
+                                <input type="checkbox"
+                                       :checked="todo.status === 'completed'"
+                                       @change="toggleTodo(todo)"
+                                       role="switch">
+                            </td>
+                            <td>
+                                <span :class="{'bought': todo.status === 'completed'}">
+                                    <strong x-text="todo.title"></strong>
+                                </span>
+                                <small x-show="todo.description" x-text="todo.description"
+                                       class="pico-color-grey-500" style="display:block;"></small>
+                            </td>
+                            <td>
+                                <mark x-text="todo.priority"
+                                      :data-priority="todo.priority"></mark>
+                            </td>
+                            <td>
+                                <span x-text="todo.deadline ? formatDate(todo.deadline) : '-'"
+                                      :class="{'overdue': isOverdue(todo)}"></span>
+                            </td>
+                            <td>
+                                <button class="outline secondary" @click="deleteTodo(todo.id)"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ==================== CALENDAR TAB ==================== -->
+        <section x-show="tab === 'calendar'">
+            <h2>Calendar Events</h2>
+
+            <!-- Add Event Form -->
+            <form @submit.prevent="addEvent()">
+                <div class="grid">
+                    <input type="text" x-model="newEvent.title" placeholder="Event title" required>
+                    <input type="text" x-model="newEvent.location" placeholder="Location (optional)">
+                </div>
+                <div class="grid">
+                    <input type="date" x-model="newEvent.date" required>
+                    <input type="time" x-model="newEvent.time">
+                    <input type="time" x-model="newEvent.endTime" placeholder="End time">
+                </div>
+                <div class="grid">
+                    <label>
+                        <input type="checkbox" x-model="newEvent.allDay" role="switch">
+                        All day event
+                    </label>
+                    <select x-model="newEvent.recurring">
+                        <option value="none">No repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                    <button type="submit" :disabled="!newEvent.title || !newEvent.date || !chatId">
+                        Add Event
+                    </button>
+                </div>
+            </form>
+
+            <!-- Events List -->
+            <template x-if="events.length === 0 && !loading">
+                <p><em>No upcoming events. Add one above.</em></p>
+            </template>
+
+            <table x-show="events.length > 0" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Event</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Recurring</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="event in events" :key="event.id">
+                        <tr>
+                            <td x-text="formatDate(event.start_time)"></td>
+                            <td>
+                                <span x-text="event.all_day ? 'All day' : formatTime(event.start_time)"></span>
+                                <span x-show="event.end_time && !event.all_day"
+                                      x-text="' - ' + formatTime(event.end_time)"></span>
+                            </td>
+                            <td>
+                                <strong x-text="event.title"></strong>
+                                <small x-show="event.description" x-text="event.description"
+                                       style="display:block;"></small>
+                            </td>
+                            <td x-text="event.location || '-'"></td>
+                            <td x-text="event.recurring !== 'none' ? event.recurring : '-'"></td>
+                            <td>
+                                <button class="outline secondary" @click="deleteEvent(event.id)"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ==================== SHOPPING TAB ==================== -->
+        <section x-show="tab === 'shopping'">
+            <h2>Shopping List</h2>
+
+            <!-- Add Item Form -->
+            <form @submit.prevent="addBuyingItem()" class="grid">
+                <input type="text" x-model="newItem.name" placeholder="Item name" required>
+                <input type="text" x-model="newItem.quantity" placeholder="Quantity (optional)">
+                <button type="submit" :disabled="!newItem.name || !chatId">Add Item</button>
+            </form>
+
+            <!-- Actions -->
+            <div x-show="buyingItems.length > 0" style="margin-bottom: 1rem;">
+                <button class="outline contrast" @click="clearBought()"
+                        :disabled="!buyingItems.some(i => i.bought)">
+                    Clear Bought Items
+                </button>
+            </div>
+
+            <!-- Shopping List -->
+            <template x-if="buyingItems.length === 0 && !loading">
+                <p><em>Shopping list is empty. Add items above.</em></p>
+            </template>
+
+            <table x-show="buyingItems.length > 0" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Bought</th>
+                        <th scope="col">Item</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Bought By</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in buyingItems" :key="item.id">
+                        <tr :class="{'bought': item.bought}">
+                            <td>
+                                <input type="checkbox"
+                                       :checked="item.bought"
+                                       @change="toggleBought(item)"
+                                       role="switch">
+                            </td>
+                            <td x-text="item.name"></td>
+                            <td x-text="item.quantity || '-'"></td>
+                            <td x-text="item.bought_by ? item.bought_by.first_name : '-'"></td>
+                            <td>
+                                <button class="outline secondary" @click="deleteBuyingItem(item.id)"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ==================== WISHES TAB ==================== -->
+        <section x-show="tab === 'wishes'">
+            <h2>Wish Lists</h2>
+
+            <!-- Add Wish Form -->
+            <form @submit.prevent="addWish()">
+                <div class="grid">
+                    <input type="text" x-model="newWish.name" placeholder="Wish item name" required>
+                    <input type="url" x-model="newWish.url" placeholder="Link (optional)">
+                </div>
+                <div class="grid">
+                    <input type="text" x-model="newWish.price" placeholder="Price (optional)">
+                    <input type="text" x-model="newWish.notes" placeholder="Notes (optional)">
+                    <button type="submit" :disabled="!newWish.name || !chatId">Add Wish</button>
+                </div>
+            </form>
+
+            <!-- Wish Lists -->
+            <template x-if="wishLists.length === 0 && !loading">
+                <p><em>No wish lists found.</em></p>
+            </template>
+
+            <template x-for="list in wishLists" :key="list.id">
+                <article>
+                    <header>
+                        <strong x-text="list.user ? list.user.first_name + '\\'s Wishes' : list.name"></strong>
+                    </header>
+
+                    <template x-if="!list.items || list.items.length === 0">
+                        <p><em>No wishes yet.</em></p>
+                    </template>
+
+                    <table x-show="list.items && list.items.length > 0" role="grid">
+                        <thead>
+                            <tr>
+                                <th scope="col">Wish</th>
+                                <th scope="col">Price</th>
+                                <th scope="col">Notes</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in list.items" :key="item.id">
+                                <tr>
+                                    <td>
+                                        <template x-if="item.url">
+                                            <a :href="item.url" target="_blank" x-text="item.name"></a>
+                                        </template>
+                                        <template x-if="!item.url">
+                                            <span x-text="item.name"></span>
+                                        </template>
+                                    </td>
+                                    <td x-text="item.price || '-'"></td>
+                                    <td x-text="item.notes || '-'"></td>
+                                    <td>
+                                        <span x-show="item.reserved" class="reserved">
+                                            Reserved
+                                            <small x-show="item.reserved_by"
+                                                   x-text="'by ' + item.reserved_by.first_name"></small>
+                                        </span>
+                                        <span x-show="!item.reserved">Available</span>
+                                    </td>
+                                    <td>
+                                        <fieldset role="group" style="margin: 0;">
+                                            <button x-show="!item.reserved"
+                                                    class="outline" @click="reserveWish(item.id)"
+                                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                                Reserve
+                                            </button>
+                                            <button x-show="item.reserved"
+                                                    class="outline secondary" @click="unreserveWish(item.id)"
+                                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                                Unreserve
+                                            </button>
+                                            <button class="outline secondary" @click="deleteWish(item.id)"
+                                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                                Delete
+                                            </button>
+                                        </fieldset>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </article>
+            </template>
+        </section>
+
+        <!-- ==================== REMINDERS TAB ==================== -->
+        <section x-show="tab === 'reminders'">
+            <h2>Reminders</h2>
+
+            <!-- Add Reminder Form -->
+            <form @submit.prevent="addReminder()">
+                <div class="grid">
+                    <input type="text" x-model="newReminder.text" placeholder="Reminder text" required>
+                    <input type="datetime-local" x-model="newReminder.time" required>
+                </div>
+                <div class="grid">
+                    <select x-model="newReminder.repeat">
+                        <option value="none">No repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    <button type="submit" :disabled="!newReminder.text || !newReminder.time || !chatId">
+                        Add Reminder
+                    </button>
+                </div>
+            </form>
+
+            <!-- Reminders List -->
+            <template x-if="reminders.length === 0 && !loading">
+                <p><em>No reminders set. Add one above.</em></p>
+            </template>
+
+            <table x-show="reminders.length > 0" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Active</th>
+                        <th scope="col">Reminder</th>
+                        <th scope="col">When</th>
+                        <th scope="col">Repeat</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="reminder in reminders" :key="reminder.id">
+                        <tr :class="{'overdue': isReminderOverdue(reminder)}">
+                            <td>
+                                <input type="checkbox"
+                                       :checked="reminder.active"
+                                       @change="toggleReminder(reminder)"
+                                       role="switch">
+                            </td>
+                            <td x-text="reminder.text"></td>
+                            <td x-text="formatDateTime(reminder.remind_at)"></td>
+                            <td x-text="reminder.repeat !== 'none' ? reminder.repeat : '-'"></td>
+                            <td>
+                                <button class="outline secondary" @click="deleteReminder(reminder.id)"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <small>TodoboT Family Dashboard &mdash; Manage your family tasks, events, and more.</small>
+        </footer>
+    </main>
+
+    <script>
+    function app() {
+        return {
+            // State
+            tab: 'todos',
+            chatId: new URLSearchParams(window.location.search).get('chat_id') || '',
+            loading: false,
+
+            // Todos
+            todos: [],
+            todoFilter: 'all',
+            newTodo: { title: '', priority: 'medium', deadline: '' },
+
+            // Calendar Events
+            events: [],
+            newEvent: { title: '', date: '', time: '', endTime: '', location: '', allDay: false, recurring: 'none' },
+
+            // Shopping / Buying List
+            buyingListId: null,
+            buyingItems: [],
+            newItem: { name: '', quantity: '' },
+
+            // Wish Lists
+            wishLists: [],
+            newWish: { name: '', url: '', price: '', notes: '' },
+
+            // Reminders
+            reminders: [],
+            newReminder: { text: '', time: '', repeat: 'none' },
+
+            // ==================== INIT ====================
+
+            async init() {
+                if (this.chatId) {
+                    await this.loadAll();
+                }
+            },
+
+            async loadAll() {
+                if (!this.chatId) return;
+
+                // Update URL with chat_id
+                const url = new URL(window.location);
+                url.searchParams.set('chat_id', this.chatId);
+                window.history.replaceState({}, '', url);
+
+                this.loading = true;
+                try {
+                    await Promise.all([
+                        this.loadTodos(),
+                        this.loadEvents(),
+                        this.loadBuying(),
+                        this.loadWishes(),
+                        this.loadReminders()
+                    ]);
+                } catch (err) {
+                    console.error('Failed to load data:', err);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            // ==================== API HELPERS ====================
+
+            apiBase() {
+                return '/api';
+            },
+
+            async apiGet(path) {
+                const resp = await fetch(this.apiBase() + path);
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(`GET ${path} failed: ${resp.status} - ${text}`);
+                }
+                return resp.json();
+            },
+
+            async apiPost(path, body) {
+                const resp = await fetch(this.apiBase() + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(`POST ${path} failed: ${resp.status} - ${text}`);
+                }
+                return resp.json();
+            },
+
+            async apiPut(path, body) {
+                const resp = await fetch(this.apiBase() + path, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(`PUT ${path} failed: ${resp.status} - ${text}`);
+                }
+                return resp.json();
+            },
+
+            async apiDelete(path) {
+                const resp = await fetch(this.apiBase() + path, {
+                    method: 'DELETE'
+                });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(`DELETE ${path} failed: ${resp.status} - ${text}`);
+                }
+                return resp.ok;
+            },
+
+            // ==================== TODOS ====================
+
+            async loadTodos() {
+                try {
+                    let url = `/todos?chat_id=${this.chatId}`;
+                    if (this.todoFilter !== 'all') {
+                        url += `&status=${this.todoFilter}`;
+                    }
+                    this.todos = await this.apiGet(url) || [];
+                } catch (err) {
+                    console.error('Failed to load todos:', err);
+                    this.todos = [];
+                }
+            },
+
+            async addTodo() {
+                if (!this.newTodo.title || !this.chatId) return;
+                try {
+                    const body = {
+                        title: this.newTodo.title,
+                        priority: this.newTodo.priority,
+                        chat_id: parseInt(this.chatId),
+                        status: 'pending'
+                    };
+                    if (this.newTodo.deadline) {
+                        body.deadline = this.newTodo.deadline + 'T23:59:59Z';
+                    }
+                    await this.apiPost('/todos', body);
+                    this.newTodo = { title: '', priority: 'medium', deadline: '' };
+                    await this.loadTodos();
+                } catch (err) {
+                    console.error('Failed to add todo:', err);
+                }
+            },
+
+            async toggleTodo(todo) {
+                try {
+                    const newStatus = todo.status === 'completed' ? 'pending' : 'completed';
+                    await this.apiPut(`/todos/${todo.id}`, {
+                        ...todo,
+                        status: newStatus
+                    });
+                    await this.loadTodos();
+                } catch (err) {
+                    console.error('Failed to toggle todo:', err);
+                }
+            },
+
+            async deleteTodo(id) {
+                if (!confirm('Delete this todo?')) return;
+                try {
+                    await this.apiDelete(`/todos/${id}`);
+                    await this.loadTodos();
+                } catch (err) {
+                    console.error('Failed to delete todo:', err);
+                }
+            },
+
+            // ==================== CALENDAR ====================
+
+            async loadEvents() {
+                try {
+                    this.events = await this.apiGet(`/calendar?chat_id=${this.chatId}`) || [];
+                } catch (err) {
+                    console.error('Failed to load events:', err);
+                    this.events = [];
+                }
+            },
+
+            async addEvent() {
+                if (!this.newEvent.title || !this.newEvent.date || !this.chatId) return;
+                try {
+                    let startTime = this.newEvent.date;
+                    if (this.newEvent.time && !this.newEvent.allDay) {
+                        startTime += 'T' + this.newEvent.time + ':00Z';
+                    } else {
+                        startTime += 'T00:00:00Z';
+                    }
+
+                    const body = {
+                        title: this.newEvent.title,
+                        chat_id: parseInt(this.chatId),
+                        start_time: startTime,
+                        all_day: this.newEvent.allDay,
+                        recurring: this.newEvent.recurring,
+                        location: this.newEvent.location
+                    };
+
+                    if (this.newEvent.endTime && !this.newEvent.allDay) {
+                        body.end_time = this.newEvent.date + 'T' + this.newEvent.endTime + ':00Z';
+                    }
+
+                    await this.apiPost('/calendar', body);
+                    this.newEvent = { title: '', date: '', time: '', endTime: '', location: '', allDay: false, recurring: 'none' };
+                    await this.loadEvents();
+                } catch (err) {
+                    console.error('Failed to add event:', err);
+                }
+            },
+
+            async deleteEvent(id) {
+                if (!confirm('Delete this event?')) return;
+                try {
+                    await this.apiDelete(`/calendar/${id}`);
+                    await this.loadEvents();
+                } catch (err) {
+                    console.error('Failed to delete event:', err);
+                }
+            },
+
+            // ==================== SHOPPING / BUYING LIST ====================
+
+            async loadBuying() {
+                try {
+                    const list = await this.apiGet(`/buying?chat_id=${this.chatId}`);
+                    if (list) {
+                        this.buyingListId = list.id;
+                        this.buyingItems = list.items || [];
+                    } else {
+                        this.buyingItems = [];
+                    }
+                } catch (err) {
+                    console.error('Failed to load buying list:', err);
+                    this.buyingItems = [];
+                }
+            },
+
+            async addBuyingItem() {
+                if (!this.newItem.name || !this.chatId) return;
+                try {
+                    const body = {
+                        name: this.newItem.name,
+                        quantity: this.newItem.quantity,
+                        chat_id: parseInt(this.chatId)
+                    };
+                    if (this.buyingListId) {
+                        body.buying_list_id = this.buyingListId;
+                    }
+                    await this.apiPost('/buying/items', body);
+                    this.newItem = { name: '', quantity: '' };
+                    await this.loadBuying();
+                } catch (err) {
+                    console.error('Failed to add item:', err);
+                }
+            },
+
+            async toggleBought(item) {
+                try {
+                    if (!item.bought) {
+                        await this.apiPut(`/buying/items/${item.id}/bought`, {});
+                    }
+                    await this.loadBuying();
+                } catch (err) {
+                    console.error('Failed to toggle bought:', err);
+                }
+            },
+
+            async deleteBuyingItem(id) {
+                if (!confirm('Remove this item?')) return;
+                try {
+                    await this.apiDelete(`/buying/items/${id}`);
+                    await this.loadBuying();
+                } catch (err) {
+                    console.error('Failed to delete item:', err);
+                }
+            },
+
+            async clearBought() {
+                if (!this.buyingListId) return;
+                if (!confirm('Clear all bought items?')) return;
+                try {
+                    await this.apiDelete(`/buying/${this.buyingListId}/bought`);
+                    await this.loadBuying();
+                } catch (err) {
+                    console.error('Failed to clear bought items:', err);
+                }
+            },
+
+            // ==================== WISHES ====================
+
+            async loadWishes() {
+                try {
+                    this.wishLists = await this.apiGet(`/wishes?chat_id=${this.chatId}`) || [];
+                } catch (err) {
+                    console.error('Failed to load wishes:', err);
+                    this.wishLists = [];
+                }
+            },
+
+            async addWish() {
+                if (!this.newWish.name || !this.chatId) return;
+                try {
+                    const body = {
+                        name: this.newWish.name,
+                        url: this.newWish.url,
+                        price: this.newWish.price,
+                        notes: this.newWish.notes,
+                        chat_id: parseInt(this.chatId)
+                    };
+                    await this.apiPost('/wishes/items', body);
+                    this.newWish = { name: '', url: '', price: '', notes: '' };
+                    await this.loadWishes();
+                } catch (err) {
+                    console.error('Failed to add wish:', err);
+                }
+            },
+
+            async reserveWish(itemId) {
+                try {
+                    await this.apiPut(`/wishes/items/${itemId}/reserve`, {});
+                    await this.loadWishes();
+                } catch (err) {
+                    console.error('Failed to reserve wish:', err);
+                }
+            },
+
+            async unreserveWish(itemId) {
+                try {
+                    await this.apiPut(`/wishes/items/${itemId}/unreserve`, {});
+                    await this.loadWishes();
+                } catch (err) {
+                    console.error('Failed to unreserve wish:', err);
+                }
+            },
+
+            async deleteWish(itemId) {
+                if (!confirm('Delete this wish?')) return;
+                try {
+                    await this.apiDelete(`/wishes/items/${itemId}`);
+                    await this.loadWishes();
+                } catch (err) {
+                    console.error('Failed to delete wish:', err);
+                }
+            },
+
+            // ==================== REMINDERS ====================
+
+            async loadReminders() {
+                try {
+                    this.reminders = await this.apiGet(`/reminders?chat_id=${this.chatId}`) || [];
+                } catch (err) {
+                    console.error('Failed to load reminders:', err);
+                    this.reminders = [];
+                }
+            },
+
+            async addReminder() {
+                if (!this.newReminder.text || !this.newReminder.time || !this.chatId) return;
+                try {
+                    const body = {
+                        text: this.newReminder.text,
+                        remind_at: new Date(this.newReminder.time).toISOString(),
+                        repeat: this.newReminder.repeat,
+                        chat_id: parseInt(this.chatId),
+                        active: true
+                    };
+                    await this.apiPost('/reminders', body);
+                    this.newReminder = { text: '', time: '', repeat: 'none' };
+                    await this.loadReminders();
+                } catch (err) {
+                    console.error('Failed to add reminder:', err);
+                }
+            },
+
+            async toggleReminder(reminder) {
+                try {
+                    if (reminder.active) {
+                        await this.apiPut(`/reminders/${reminder.id}/deactivate`, {});
+                    } else {
+                        await this.apiPut(`/reminders/${reminder.id}`, {
+                            ...reminder,
+                            active: true
+                        });
+                    }
+                    await this.loadReminders();
+                } catch (err) {
+                    console.error('Failed to toggle reminder:', err);
+                }
+            },
+
+            async deleteReminder(id) {
+                if (!confirm('Delete this reminder?')) return;
+                try {
+                    await this.apiDelete(`/reminders/${id}`);
+                    await this.loadReminders();
+                } catch (err) {
+                    console.error('Failed to delete reminder:', err);
+                }
+            },
+
+            // ==================== FORMATTING HELPERS ====================
+
+            formatDate(dateStr) {
+                if (!dateStr) return '-';
+                const d = new Date(dateStr);
+                return d.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            },
+
+            formatTime(dateStr) {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+
+            formatDateTime(dateStr) {
+                if (!dateStr) return '-';
+                const d = new Date(dateStr);
+                return d.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+
+            isOverdue(todo) {
+                if (!todo.deadline || todo.status === 'completed') return false;
+                return new Date() > new Date(todo.deadline);
+            },
+
+            isReminderOverdue(reminder) {
+                if (!reminder.active) return false;
+                return new Date() > new Date(reminder.remind_at);
+            }
+        };
+    }
+    </script>
+</body>
+</html>

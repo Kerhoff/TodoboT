@@ -1,0 +1,44 @@
+replicaCount: 1
+
+image:
+  repository: todobot
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: todobot.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+env:
+  TELEGRAM_TOKEN: ""
+  DATABASE_URL: ""
+  LOG_LEVEL: "info"
+  PORT: "8080"
+
+postgresql:
+  enabled: true
+  auth:
+    username: todobot
+    password: todobot
+    database: todobot
+  primary:
+    persistence:
+      size: 1Gi
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

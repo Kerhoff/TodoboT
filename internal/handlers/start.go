@@ -12,35 +12,24 @@ type StartHandler struct {
 	logger *logrus.Logger
 }
 
-// NewStartHandler creates a new start command handler
 func NewStartHandler(logger *logrus.Logger) *StartHandler {
-	return &StartHandler{
-		logger: logger,
-	}
+	return &StartHandler{logger: logger}
 }
 
-// Handle processes the /start command
 func (h *StartHandler) Handle(bot *tgbotapi.BotAPI, message *tgbotapi.Message, args []string) error {
 	welcomeText := `
 🎯 *Welcome to TodoboT!*
 
-I'm here to help you manage your family's todo list in this group chat.
+Your family assistant for tasks, events, shopping, wishes, and reminders.
 
-*Available Commands:*
-• /add <todo> - Add a new todo item
-• /list - Show all todos
-• /done <id> - Mark todo as completed
-• /delete <id> - Delete a todo
-• /my - Show your assigned todos
-• /help - Show this help message
+*Quick Start:*
+• /add Buy groceries - Add a todo
+• /event Birthday 2025-03-15 - Add event
+• /buy Milk x 2 - Add to shopping list
+• /wish New headphones - Add to wish list
+• /remind 2h Take medicine - Set reminder
 
-*Advanced Features:*
-• /assign <id> @username - Assign todo to someone
-• /priority <id> <high/medium/low> - Set priority
-• /deadline <id> <date> - Set deadline
-• /comment <id> <text> - Add comment
-
-Get started by adding your first todo with /add!
+Type /help for the full command list!
 	`
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, welcomeText)

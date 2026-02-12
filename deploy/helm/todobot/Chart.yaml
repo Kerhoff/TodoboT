@@ -1,0 +1,6 @@
+apiVersion: v2
+name: todobot
+description: Family Telegram Bot for todos, calendar, shopping, wishes, and reminders
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

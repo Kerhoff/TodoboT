@@ -12,48 +12,42 @@ type HelpHandler struct {
 	logger *logrus.Logger
 }
 
-// NewHelpHandler creates a new help command handler
 func NewHelpHandler(logger *logrus.Logger) *HelpHandler {
-	return &HelpHandler{
-		logger: logger,
-	}
+	return &HelpHandler{logger: logger}
 }
 
-// Handle processes the /help command
 func (h *HelpHandler) Handle(bot *tgbotapi.BotAPI, message *tgbotapi.Message, args []string) error {
-	helpText := `
-📚 *TodoboT Help*
+	helpText := `📚 *TodoboT Help*
 
-*Basic Commands:*
-• \`/start\` - Show welcome message
-• \`/help\` - Show this help message
-• \`/add <todo>\` - Add a new todo item
-• \`/list\` - Show all todos
-• \`/done <id>\` - Mark todo as completed
-• \`/delete <id>\` - Delete a todo
-• \`/my\` - Show your assigned todos
+*Todos:*
+• /add <text> - Add a new todo
+• /list - Show pending todos
+• /done <id> - Complete a todo
+• /delete <id> - Delete a todo
+• /my - Show your assigned todos
 
-*Advanced Commands:*
-• \`/assign <id> @username\` - Assign todo to someone
-• \`/priority <id> <high/medium/low>\` - Set priority level
-• \`/deadline <id> <date>\` - Set deadline (YYYY-MM-DD format)
-• \`/comment <id> <text>\` - Add comment to todo
-• \`/completed\` - Show completed todos
-• \`/pending\` - Show pending todos
+*Calendar:*
+• /event <title> <YYYY-MM-DD> [HH:MM] - Add event
+• /events - Show upcoming events
+• /delevent <id> - Delete an event
 
-*Examples:*
-• \`/add Buy groceries\`
-• \`/assign 1 @john\`
-• \`/priority 1 high\`
-• \`/deadline 1 2024-12-31\`
-• \`/done 1\`
+*Shopping List:*
+• /buy <item> [x qty] - Add to shopping list
+• /buylist - Show shopping list
+• /bought <id> - Mark item as bought
+• /buyclear - Clear bought items
 
-*Tips:*
-• Use todo ID numbers shown in /list command
-• Todos are shared within this group chat
-• You can only delete todos you created
-• Use @username to mention specific users
-	`
+*Wish Lists:*
+• /wish <item> - Add to your wish list
+• /wishlist [@user] - View wish lists
+• /reserve <id> - Reserve a wish item
+
+*Reminders:*
+• /remind <time> <text> - Set reminder
+• /reminders - Show your reminders
+• /delremind <id> - Delete reminder
+
+_Time formats: 10m, 2h, 1d, 15:30, 2025-01-15 15:30_`
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, helpText)
 	msg.ParseMode = tgbotapi.ModeMarkdown
